@@ -10,3 +10,5 @@ This script requires 2 parameters:
 - Admin account to exclude from remediation
 
 The script is a simple Self Service policy that can be allowed any time or restricted using execution frequency and/or scoping.
+
+A simple icon is provided for use in Self Service if you want.

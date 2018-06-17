@@ -1,3 +1,5 @@
+# A NEW VERSION OF THE SCRIPT IS COMING SOON, WAIT BEFORE USING THIS ONE#
+
 # Temp-Admin
 Jamf script to give admin privileges for a few minutes, remove them from the user and other accounts
 

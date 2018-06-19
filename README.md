@@ -1,16 +1,18 @@
-# A NEW VERSION OF THE SCRIPT IS COMING SOON, WAIT BEFORE USING THIS ONE
-
 # Temp-Admin
-Jamf script to give admin privileges for a few minutes, remove them from the user and other accounts
+Script to give admin privileges for a few minutes, remove them from the user and other accounts
 
-With this script executed from Self Service, users get temporary admin privileges for the amount of time you choose (default is 10 minutes).
+With this script executed from Jamf Self Service (or probably any other management tool that can let users execute scripts), users get temporary admin privileges for the amount of time you choose (default is 10 minutes).
 
-After the time is expired, another script is run in order to remove admin privileges for the user but also for any user account with UID > 500. You can exclude a specific account if you wish. It allows to do some cleaning to avoid a user creating an admin during his admin time so it could be reused without the script.
+After the time is expired, another script is run in order to remove admin privileges for the user but also for any user account created as an admin after the launch of the first script. The new admin accounts created are discovered comparing the list of admins before and after, even if they have a low UID (<501).
 
-This script requires 2 parameters:
+
+This script requires 1 parameter:
 - Number of minutes during which a user is an admin (default is 10 minutes)
-- Admin account to exclude from remediation
 
 The script is a simple Self Service policy that can be allowed any time or restricted using execution frequency and/or scoping.
 
 A simple icon is provided for use in Self Service if you want.
+
+# Changes
+
+This is a new version of the script previously published. It does not require to exclude manually an admin in the parameters and will also find admins that would be hidden.

@@ -37,14 +37,13 @@
 # 
 # A window will show them the amount of time left, if they close it the script will still execute
 # 
-# After the time is elapsed, their privileges are removed. Any other account that is admin is also
-# demoted except the account mentioned in paramater 5 (that is, usually your local admin) or any
-# hidden account (that is usually an account with UID < 501).
+# After the time is elapsed, their privileges are removed. Any new account that is admin is also
+# demoted except the accounts that were admin before the execution of the script.
 # 
 # Written by: Laurent Pertois | Senior Professional Services Engineer | Jamf
 #
 # Created On: 2018-06-12
-# Updated On: 2018-06-12
+# Updated On: 2018-06-15
 #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
@@ -82,32 +81,36 @@ if [ "$MEMBERSHIP" == "user is not a member of the group" ]; then
 	# Checks if atrun is launched or not (to disable admin privileges after the defined amount of time)
 	if ! launchctl list|grep -q com.apple.atrun; then launchctl load -w /System/Library/LaunchDaemons/com.apple.atrun.plist; fi
 
-	# Makes the user an admin
-	/usr/sbin/dseditgroup -o edit -a "$USERNAME" -t user admin
-	logger "Elevating $USERNAME."
-
 	# Uses at to execute the cleaning script after the defined amount of time
-	# Be careful, at can take some time to execute and be delayed under heavy load
+	# Be careful, it can take some time to execute and be delayed under heavy load
 	echo "#!/bin/sh
+	# For any user with UID >= 501 remove admin privileges except if they existed prior the execution of the script
 
+	ADMINMEMBERS=($(dscacheutil -q group -a name admin | grep -e '^users:' | sed -e 's/users: //' -e 's/ $//'))
 
-	# For any user with UID >= 501 remove admin privileges
-	# One user can be whitelisted using Jamf Pro parameters, it is \$5 in the Jamf Pro policy
+	NEWADMINMEMBERS=(\$(dscacheutil -q group -a name admin | grep -e '^users:' | sed -e 's/users: //'))
 
-	for user in \$(dscl . -list /Users uid | awk '{if ( \$2 >= 501 ) print \$1}');do
-
+	for user in \"\${NEWADMINMEMBERS[@]}\";do
 		# Checks if user is whitelisted or not
-		if [ \"\$user\" != \"$5\" ]; then
+
+		WHITELISTED=\$(echo \"\${ADMINMEMBERS[@]}\"  | grep -c \"\$user\")
+
+		if [ \$WHITELISTED -gt 0 ]; then
+			
+			logger \"\$user is whitelisted\"
+			
+		else
 		
 			# If not whitelisted, then removes admin privileges
 			/usr/sbin/dseditgroup -o edit -d \$user -t user admin
-
 		fi	
-
 	done
 
 	exit $?" | at -t "$(date -v+"$TEMPSECONDS"S "+%Y%m%d%H%M.%S")"
 
+	# Makes the user an admin
+	/usr/sbin/dseditgroup -o edit -a "$USERNAME" -t user admin
+	logger "Elevating $USERNAME."
 
 	# Path to Jamf Helper
 	JAMFHELPERPATH="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"

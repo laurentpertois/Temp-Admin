@@ -16,3 +16,7 @@ A simple icon is provided for use in Self Service if you want.
 # Changes
 
 This is a new version of the script previously published. It does not require to exclude manually an admin in the parameters and will also find admins that would be hidden.
+
+# Things to know...
+
+This script uses the "at" command in order to execute the second part of the action (removal of admin privileges and remediation of admins created after the launch). Which means it could potentially be blocked by stopping the "at" Launchd element.

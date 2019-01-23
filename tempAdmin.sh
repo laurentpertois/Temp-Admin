@@ -50,6 +50,15 @@
 
 
 
+# Checks minimum version: Mojave does not seem to revert to standard privileges
+OSVERSIONMAJOR=$(sw_vers -productVersion | awk -F"." '{ print $2 }')
+if [ "$OSVERSIONMAJOR" -ge 14 ]; then
+
+        osascript -e "display dialog \"This tool is not compatible with macOS Mojave\" buttons \"OK\" with icon caution"
+        exit 1
+
+fi
+
 # Get username of current logged in user
 USERNAME=$(/usr/bin/python -c 'from SystemConfiguration import SCDynamicStoreCopyConsoleUser; import sys; username = (SCDynamicStoreCopyConsoleUser(None, None, None) or [None])[0]; username = [username,""][username in [u"loginwindow", None, u""]]; sys.stdout.write(username + "\n");')
 

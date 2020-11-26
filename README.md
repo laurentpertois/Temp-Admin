@@ -17,6 +17,8 @@ A simple icon is provided for use in Self Service if you want.
 
 This is a new version of the script previously published. It does not require to exclude manually an admin in the parameters and will also find admins that would be hidden.
 
+A PPPC (Privacy Preferences Policy Control), aka TCC, configuration profile is required now to give the `atrun` command access to the disk, an example is provided.
+
 # Things to know...
 
 This script uses the "at" command in order to execute the second part of the action (removal of admin privileges and remediation of admins created after the launch). Which means it could potentially be blocked by stopping the "at" Launchd element.

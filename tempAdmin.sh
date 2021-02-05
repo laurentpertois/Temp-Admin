@@ -44,6 +44,7 @@
 #
 # Created On: 2018-06-12
 # Updated On: 2018-06-15
+# Updated On: 2019-01-25 by Emmanuel Canault | Netopie
 #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
@@ -55,6 +56,7 @@ USERNAME=$(/usr/bin/python -c 'from SystemConfiguration import SCDynamicStoreCop
 
 
 # Checks if there is a value passed as $4 for the number of minutes, if not, defaults to 10
+# Minimum should be 2 minutes because we can't set seconds for launchd
 if [ -z "$4" ]; then
 	TEMPMINUTES=10
 else
@@ -77,37 +79,101 @@ logger "Checking privileges for $USERNAME."
 MEMBERSHIP=$(dsmemberutil checkmembership -U "$USERNAME" -G admin)
 
 if [ "$MEMBERSHIP" == "user is not a member of the group" ]; then
-	
-	# Checks if atrun is launched or not (to disable admin privileges after the defined amount of time)
-	if ! launchctl list|grep -q com.apple.atrun; then launchctl load -w /System/Library/LaunchDaemons/com.apple.atrun.plist; fi
 
-	# Uses at to execute the cleaning script after the defined amount of time
-	# Be careful, it can take some time to execute and be delayed under heavy load
-	echo "#!/bin/sh
-	# For any user with UID >= 501 remove admin privileges except if they existed prior the execution of the script
+	# Checks version of the OS
+	OSVERSIONMAJOR=$(sw_vers -productVersion | awk -F"." '{ print $2 }')
+    
+    # Use launchd for Mojave...
+    if [ "$OSVERSIONMAJOR" -ge 14 ]; then
+    
+		# Pathnames of elements needed to revoke privileges
+		SCRIPTNAME="/var/root/Revoke-Privileges.sh"
+		LAUNCHDFILENAME="/Library/LaunchDaemons/com.tempadmin.revoke.plist"
 
-	ADMINMEMBERS=($(dscacheutil -q group -a name admin | grep -e '^users:' | sed -e 's/users: //' -e 's/ $//'))
+		# Uses launchd to execute the cleaning script after the defined amount of time
+		echo "#!/bin/sh
+		# For any user with UID >= 501 remove admin privileges except if they existed prior the execution of the script
 
-	NEWADMINMEMBERS=(\$(dscacheutil -q group -a name admin | grep -e '^users:' | sed -e 's/users: //'))
+		ADMINMEMBERS=($(dscacheutil -q group -a name admin | grep -e '^users:' | sed -e 's/users: //' -e 's/ $//'))
 
-	for user in \"\${NEWADMINMEMBERS[@]}\";do
-		# Checks if user is whitelisted or not
+		NEWADMINMEMBERS=(\$(dscacheutil -q group -a name admin | grep -e '^users:' | sed -e 's/users: //'))	
 
-		WHITELISTED=\$(echo \"\${ADMINMEMBERS[@]}\"  | grep -c \"\$user\")
+		for user in \"\${NEWADMINMEMBERS[@]}\";do
+			# Checks if user is whitelisted or not
 
-		if [ \$WHITELISTED -gt 0 ]; then
+			WHITELISTED=\$(echo \"\${ADMINMEMBERS[@]}\"  | grep -c \"\$user\")
+
+			if [ \$WHITELISTED -gt 0 ]; then
 			
-			logger \"\$user is whitelisted\"
+				logger \"\$user is whitelisted\"
 			
-		else
+			else
 		
-			# If not whitelisted, then removes admin privileges
-			/usr/sbin/dseditgroup -o edit -d \$user -t user admin
-		fi	
-	done
+				# If not whitelisted, then removes admin privileges and force quit jamfHelper
+				/usr/sbin/dseditgroup -o edit -d \$user -t user admin
+				killall jamfHelper
 
-	exit $?" | at -t "$(date -v+"$TEMPSECONDS"S "+%Y%m%d%H%M.%S")"
+			fi	
+		done
 
+		EXITSTATUS=\$?
+
+		# Clean elements
+		launchctl unload -w "$LAUNCHDFILENAME"
+#		/bin/rm "$LAUNCHDFILENAME"
+#		/bin/rm "$SCRIPTNAME"
+
+		exit \"\$EXITSTATUS\" " > "$SCRIPTNAME" && chmod +x "$SCRIPTNAME"
+
+		echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+		<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+		<plist version=\"1.0\">
+		<dict>
+			<key>Label</key>
+			<string>com.tempadmin.revoke</string>
+			<key>ProgramArguments</key>
+			<array>
+				<string>$SCRIPTNAME</string>
+			</array>
+			<key>StartCalendarInterval</key>
+			<dict>
+				<key>Hour</key>
+				<integer>`date -v+\"$TEMPSECONDS\"S \"+%H\"`</integer>
+				<key>Minute</key>
+				<integer>`date -v+\"$TEMPSECONDS\"S \"+%M\"`</integer>
+			</dict>
+		</dict>
+		</plist>" > "$LAUNCHDFILENAME" && chown 0:0 "$LAUNCHDFILENAME" && launchctl load -w "$LAUNCHDFILENAME"
+
+	# ... or use at for older OS versions
+	else
+
+		# Checks if atrun is launched or not (to disable admin privileges after the defined amount of time)
+		if ! launchctl list|grep -q com.apple.atrun; then launchctl load -w /System/Library/LaunchDaemons/com.apple.atrun.plist; fi
+
+		# Uses at to execute the cleaning script after the defined amount of time
+		# Be careful, it can take some time to execute and be delayed under heavy load
+		echo "#!/bin/sh
+		# For any user with UID >= 501 remove admin privileges except if they existed prior the execution of the script
+		ADMINMEMBERS=($(dscacheutil -q group -a name admin | grep -e '^users:' | sed -e 's/users: //' -e 's/ $//'))
+		NEWADMINMEMBERS=(\$(dscacheutil -q group -a name admin | grep -e '^users:' | sed -e 's/users: //'))
+		for user in \"\${NEWADMINMEMBERS[@]}\";do
+			# Checks if user is whitelisted or not
+			WHITELISTED=\$(echo \"\${ADMINMEMBERS[@]}\"  | grep -c \"\$user\")
+			if [ \$WHITELISTED -gt 0 ]; then
+			
+				logger \"\$user is whitelisted\"
+			
+			else
+		
+				# If not whitelisted, then removes admin privileges
+				/usr/sbin/dseditgroup -o edit -d \$user -t user admin
+			fi	
+		done
+		exit $?" | at -t "$(date -v+"$TEMPSECONDS"S "+%Y%m%d%H%M.%S")"
+
+	fi
+    
 	# Makes the user an admin
 	/usr/sbin/dseditgroup -o edit -a "$USERNAME" -t user admin
 	logger "Elevating $USERNAME."

@@ -44,6 +44,7 @@
 #
 # Created On: 2018-06-12
 # Updated On: 2018-06-15
+# Updated On: 2021-11-12 (changed method to find the username)
 #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
@@ -51,7 +52,7 @@
 
 
 # Get username of current logged in user
-USERNAME=$(/usr/bin/python -c 'from SystemConfiguration import SCDynamicStoreCopyConsoleUser; import sys; username = (SCDynamicStoreCopyConsoleUser(None, None, None) or [None])[0]; username = [username,""][username in [u"loginwindow", None, u""]]; sys.stdout.write(username + "\n");')
+USERNAME=$(/bin/echo 'show State:/Users/ConsoleUser' | /usr/sbin/scutil | /usr/bin/awk '/Name / { print $3 }')
 
 
 # Checks if there is a value passed as $4 for the number of minutes, if not, defaults to 10

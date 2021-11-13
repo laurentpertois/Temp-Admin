@@ -51,6 +51,15 @@
 
 
 
+# Checks minimum version: Mojave does not seem to revert to standard privileges
+OSVERSIONMAJOR=$(sw_vers -productVersion | awk -F"." '{ print $2 }')
+if [ "$OSVERSIONMAJOR" -ge 14 ]; then
+
+        osascript -e "display dialog \"This tool is not compatible with macOS Mojave\" buttons \"OK\" with icon caution"
+        exit 1
+
+fi
+
 # Get username of current logged in user
 USERNAME=$(/bin/echo 'show State:/Users/ConsoleUser' | /usr/sbin/scutil | /usr/bin/awk '/Name / { print $3 }')
 

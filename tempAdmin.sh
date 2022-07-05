@@ -84,7 +84,7 @@ if [ "$MEMBERSHIP" == "user is not a member of the group" ]; then
 
 	# Uses at to execute the cleaning script after the defined amount of time
 	# Be careful, it can take some time to execute and be delayed under heavy load
-	echo "#!/bin/sh
+	echo "#!/bin/bash
 	# For any user with UID >= 501 remove admin privileges except if they existed prior the execution of the script
 
 	ADMINMEMBERS=($(dscacheutil -q group -a name admin | grep -e '^users:' | sed -e 's/users: //' -e 's/ $//'))
